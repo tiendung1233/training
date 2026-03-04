@@ -1,0 +1,334 @@
+{% comment %}
+  Sale Notification Popup — App Block
+  Fetches notifications and settings from the Firebase Client API
+  and displays sale popups on the storefront.
+{% endcomment %}
+
+<style>
+  .avada-sp-wrapper {
+    position: fixed;
+    z-index: 999999;
+    max-width: 420px;
+    width: calc(100% - 30px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease, transform 0.5s ease, visibility 0.5s ease;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .avada-sp-wrapper.avada-sp-visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* Positions */
+  .avada-sp-wrapper.avada-sp-bottom-left {
+    bottom: 20px;
+    left: 15px;
+    transform: translateX(-120%);
+  }
+  .avada-sp-wrapper.avada-sp-bottom-left.avada-sp-visible {
+    transform: translateX(0);
+  }
+  .avada-sp-wrapper.avada-sp-bottom-right {
+    bottom: 20px;
+    right: 15px;
+    transform: translateX(120%);
+  }
+  .avada-sp-wrapper.avada-sp-bottom-right.avada-sp-visible {
+    transform: translateX(0);
+  }
+  .avada-sp-wrapper.avada-sp-top-left {
+    top: 20px;
+    left: 15px;
+    transform: translateX(-120%);
+  }
+  .avada-sp-wrapper.avada-sp-top-left.avada-sp-visible {
+    transform: translateX(0);
+  }
+  .avada-sp-wrapper.avada-sp-top-right {
+    top: 20px;
+    right: 15px;
+    transform: translateX(120%);
+  }
+  .avada-sp-wrapper.avada-sp-top-right.avada-sp-visible {
+    transform: translateX(0);
+  }
+
+  /* Card */
+  .avada-sp-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+    padding: 14px 16px;
+    position: relative;
+  }
+
+  /* Close button */
+  .avada-sp-close {
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: #999;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+  }
+  .avada-sp-close:hover {
+    color: #333;
+  }
+
+  /* Image */
+  .avada-sp-image {
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    border-radius: 6px;
+    object-fit: cover;
+    background: #f5f5f5;
+  }
+
+  /* Content */
+  .avada-sp-content {
+    flex: 1;
+    min-width: 0;
+    padding-right: 14px;
+  }
+  .avada-sp-customer {
+    font-size: 13px;
+    color: #555;
+    margin: 0 0 2px 0;
+    line-height: 1.3;
+  }
+  .avada-sp-product {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0 0 4px 0;
+    line-height: 1.3;
+  }
+  .avada-sp-product.avada-sp-truncated {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .avada-sp-time {
+    font-size: 12px;
+    color: #999;
+    margin: 0;
+  }
+
+  /* Footer */
+  .avada-sp-footer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .avada-sp-verified {
+    font-size: 11px;
+    color: #4caf50;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .avada-sp-verified svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  @media (max-width: 480px) {
+    .avada-sp-wrapper {
+      max-width: calc(100% - 20px);
+      width: calc(100% - 20px);
+    }
+    .avada-sp-wrapper.avada-sp-bottom-left,
+    .avada-sp-wrapper.avada-sp-bottom-right {
+      bottom: 10px;
+    }
+    .avada-sp-wrapper.avada-sp-bottom-left { left: 10px; }
+    .avada-sp-wrapper.avada-sp-bottom-right { right: 10px; }
+    .avada-sp-wrapper.avada-sp-top-left { left: 10px; }
+    .avada-sp-wrapper.avada-sp-top-right { right: 10px; }
+  }
+</style>
+
+<!-- Popup container -->
+<div id="avada-sale-pop" class="avada-sp-wrapper" style="display:none;">
+  <div class="avada-sp-card">
+    <button class="avada-sp-close" id="avada-sp-close" aria-label="Close">&times;</button>
+    <img id="avada-sp-img" class="avada-sp-image" src="" alt="Product image" />
+    <div class="avada-sp-content">
+      <p class="avada-sp-customer" id="avada-sp-customer"></p>
+      <p class="avada-sp-product" id="avada-sp-product"></p>
+      <p class="avada-sp-time" id="avada-sp-time"></p>
+      <div class="avada-sp-footer">
+        <span class="avada-sp-verified">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+          Verified
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    'use strict';
+
+    var SHOP_ID = {{ shop.permanent_domain | json }} || (window.Shopify && window.Shopify.shop) || '';
+    var APP_URL = {{ block.settings.app_url | json }};
+
+    if (!SHOP_ID || !APP_URL) return;
+
+    var clientEndpoint = APP_URL.replace(/\/+$/, '') + '/api/client/' + encodeURIComponent(SHOP_ID);
+
+    /* ---------- helpers ---------- */
+    function timeAgo(timestamp) {
+      var seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+      if (seconds < 60)   return seconds + ' seconds ago';
+      var minutes = Math.floor(seconds / 60);
+      if (minutes < 60)   return minutes + ' minutes ago';
+      var hours   = Math.floor(minutes / 60);
+      if (hours < 24)     return hours + ' hours ago';
+      var days    = Math.floor(hours / 24);
+      return days + ' days ago';
+    }
+
+    function sleep(ms) {
+      return new Promise(function(resolve) { setTimeout(resolve, ms); });
+    }
+
+    function shouldShowOnPage(settings) {
+      if (!settings.allowShow || settings.allowShow === 'all') return true;
+
+      var currentUrl = window.location.pathname;
+
+      if (settings.excludedUrls) {
+        var excluded = settings.excludedUrls.split('\n').map(function(u) { return u.trim(); }).filter(Boolean);
+        for (var i = 0; i < excluded.length; i++) {
+          if (currentUrl.indexOf(excluded[i]) !== -1) return false;
+        }
+      }
+
+      if (settings.allowShow === 'specific' && settings.includedUrls) {
+        var included = settings.includedUrls.split('\n').map(function(u) { return u.trim(); }).filter(Boolean);
+        if (included.length === 0) return true;
+        for (var j = 0; j < included.length; j++) {
+          if (currentUrl.indexOf(included[j]) !== -1) return true;
+        }
+        return false;
+      }
+
+      return true;
+    }
+
+    /* ---------- popup logic ---------- */
+    var wrapper     = document.getElementById('avada-sale-pop');
+    var imgEl       = document.getElementById('avada-sp-img');
+    var customerEl  = document.getElementById('avada-sp-customer');
+    var productEl   = document.getElementById('avada-sp-product');
+    var timeEl      = document.getElementById('avada-sp-time');
+    var closeBtn    = document.getElementById('avada-sp-close');
+
+    var isClosed = false;
+
+    closeBtn.addEventListener('click', function() {
+      wrapper.classList.remove('avada-sp-visible');
+      isClosed = true;
+    });
+
+    function showPopup(notification, settings) {
+      var position = settings.position || 'bottom-left';
+      wrapper.className = 'avada-sp-wrapper avada-sp-' + position;
+      wrapper.style.display = '';
+
+      imgEl.src = notification.productImage || '';
+      imgEl.alt = notification.productName || 'Product';
+
+      var location = [notification.city, notification.country].filter(Boolean).join(', ');
+      customerEl.textContent = (notification.firstName || 'Someone') + (location ? ' from ' + location : '');
+
+      productEl.textContent = 'Purchased ' + (notification.productName || 'a product');
+      if (settings.truncateProductName) {
+        productEl.classList.add('avada-sp-truncated');
+      } else {
+        productEl.classList.remove('avada-sp-truncated');
+      }
+
+      if (settings.hideTimeAgo) {
+        timeEl.style.display = 'none';
+      } else {
+        timeEl.style.display = '';
+        timeEl.textContent = notification.timestamp ? timeAgo(notification.timestamp) : '';
+      }
+
+      wrapper.classList.add('avada-sp-visible');
+    }
+
+    function hidePopup() {
+      wrapper.classList.remove('avada-sp-visible');
+    }
+
+    /* ---------- main ---------- */
+    async function main() {
+      try {
+        var res = await fetch(clientEndpoint);
+        var json = await res.json();
+
+        if (!json.success || !json.data) return;
+
+        var settings      = json.data.settings || {};
+        var notifications = json.data.notifications || [];
+
+        if (notifications.length === 0) return;
+        if (!shouldShowOnPage(settings)) return;
+
+        var displayDuration = (settings.displayDuration || 5) * 1000;
+        var firstDelay      = (settings.firstDelay || 3) * 1000;
+        var popsInterval    = (settings.popsInterval || 4) * 1000;
+        var maxPops         = settings.maxPopsDisplay || 10;
+
+        // Wait for firstDelay
+        await sleep(firstDelay);
+
+        var count = Math.min(notifications.length, maxPops);
+        for (var i = 0; i < count; i++) {
+          if (isClosed) break;
+
+          showPopup(notifications[i], settings);
+          await sleep(displayDuration);
+          hidePopup();
+
+          if (i < count - 1) {
+            await sleep(popsInterval);
+          }
+        }
+      } catch (err) {
+        console.error('[Sale Notification]', err);
+      }
+    }
+
+    main();
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Sale Notification Popup",
+  "target": "body",
+  "settings": [
+    {
+      "type": "text",
+      "id": "app_url",
+      "label": "App URL",
+      "info": "The Cloudflare tunnel URL from shopify app dev (e.g. https://xxx.trycloudflare.com)"
+    }
+  ]
+}
+{% endschema %}

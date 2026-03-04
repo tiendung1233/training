@@ -40,12 +40,20 @@ export default defineConfig({
     allowedHosts: [host],
     cors: {
       preflightContinue: true,
+      origin: true,
+      credentials: true,
     },
     port: Number(process.env.PORT || 3000),
     hmr: hmrConfig,
     fs: {
       // See https://vitejs.dev/config/server-options.html#server-fs-allow for more information
       allow: ["app", "node_modules"],
+    },
+    proxy: {
+      '/api/client': {
+        target: 'http://127.0.0.1:5001/heni-8a427/us-central1/api',
+        changeOrigin: true,
+      },
     },
   },
   plugins: [

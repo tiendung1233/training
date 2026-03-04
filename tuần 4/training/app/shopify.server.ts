@@ -69,6 +69,9 @@ const shopify = shopifyApp({
                           id
                         }
                         title
+                        image {
+                          url
+                        }
                       }
                     }
                   }
@@ -98,7 +101,8 @@ const shopify = shopifyApp({
             line_items: firstLineItem ? [
               {
                 title: firstLineItem.title,
-                product_id: firstLineItem.product?.id?.replace("gid://shopify/Product/", "")
+                product_id: firstLineItem.product?.id?.replace("gid://shopify/Product/", ""),
+                image: firstLineItem.image?.url || ""
               }
             ] : []
           };

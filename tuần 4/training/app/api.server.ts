@@ -2,7 +2,7 @@
  * A server-side utility to interact with the local Firebase serve instance.
  */
 
-export const firebaseApiURL = process.env.FIREBASE_API_URL || 'http://localhost:5001/heni-8a427/us-central1/api';
+export const firebaseApiURL = process.env.FIREBASE_API_URL || 'http://127.0.0.1:4000/heni-8a427/us-central1/api';
 
 export async function fetchFirebaseAPI(endpoint: string, options: RequestInit = {}) {
     const url = `${firebaseApiURL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
@@ -30,5 +30,27 @@ export async function syncShopInstallationPayload(payload: any) {
     return fetchFirebaseAPI('/install', {
         method: 'POST',
         body: JSON.stringify(payload)
+    });
+}
+
+export async function fetchSettings(shopId: string) {
+    return fetchFirebaseAPI(`/api/settings?shopId=${encodeURIComponent(shopId)}`);
+}
+
+export async function saveSettings(shopId: string, data: any) {
+    return fetchFirebaseAPI('/api/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ shopId, ...data })
+    });
+}
+
+export async function fetchNotifications(shopId: string) {
+    return fetchFirebaseAPI(`/api/notifications?shopId=${encodeURIComponent(shopId)}`);
+}
+
+export async function sendWebhookOrder(shopId: string, order: any) {
+    return fetchFirebaseAPI('/webhook/orders-create', {
+        method: 'POST',
+        body: JSON.stringify({ shopId, order })
     });
 }

@@ -1,0 +1,10 @@
+api_version = "2025-10"
+
+[[extensions]]
+name = "Sale Notification Popup"
+handle = "sale-notification"
+uid = "fcc54c39-9173-bc38-ef8d-dd70a0e9fcb3d2e5ee00"
+type = "theme"
+
+[extensions.capabilities]
+  auto_import = true
